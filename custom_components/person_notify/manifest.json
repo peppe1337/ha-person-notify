@@ -1,0 +1,12 @@
+{
+  "domain": "person_notify",
+  "name": "Person Notify",
+  "codeowners": ["@peppe1337"],
+  "config_flow": true,
+  "documentation": "https://github.com/peppe1337/ha-person-notify",
+  "integration_type": "service",
+  "iot_class": "calculated",
+  "issue_tracker": "https://github.com/peppe1337/ha-person-notify/issues",
+  "requirements": [],
+  "version": "1.0.0"
+}

@@ -1,0 +1,14 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Person Notify",
+        "description": "This integration automatically creates a notification service for each person entity, resolving all mobile devices of that person."
+      }
+    },
+    "abort": {
+      "already_configured": "Person Notify is already configured.",
+      "single_instance_allowed": "Only a single instance allowed."
+    }
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Person Notify",
+        "description": "Diese Integration legt fuer jede Person-Entitaet automatisch einen Benachrichtigungs-Dienst an, der alle mobilen Geraete der Person aufloest."
+      }
+    },
+    "abort": {
+      "already_configured": "Person Notify ist bereits eingerichtet.",
+      "single_instance_allowed": "Nur eine Instanz erlaubt."
+    }
+  }
+}

@@ -1,0 +1,94 @@
+_subdirectory: template
+_templates_suffix: .jinja
+_envops:
+  autoescape: false
+  block_start_string: "[%"
+  block_end_string: "%]"
+  variable_start_string: "[["
+  variable_end_string: "]]"
+  comment_start_string: "[#"
+  comment_end_string: "#]"
+  keep_trailing_newline: true
+
+project_domain:
+  type: str
+  help: "Integration domain (lowercase, underscores, e.g. my_integration)"
+  validator: >-
+    [% if not (project_domain | regex_search('^[a-z][a-z0-9_]*$')) %]
+    Domain must start with a letter, contain only lowercase letters, digits, and underscores.
+    [% endif %]
+
+project_name:
+  type: str
+  help: "Human-readable name (e.g. My Integration)"
+  default: "[[ project_domain | replace('_', ' ') | title ]]"
+
+project_description:
+  type: str
+  help: "Short description of this integration"
+  default: "A Home Assistant integration."
+
+author_name:
+  type: str
+  help: "GitHub username (for manifest codeowners)"
+
+iot_class:
+  type: str
+  help: "How this integration communicates with devices/services"
+  default: local_polling
+  choices:
+    - assumed_state
+    - cloud_polling
+    - cloud_push
+    - local_polling
+    - local_push
+    - calculated
+
+integration_type:
+  type: str
+  help: "Integration type (describes the integration's primary focus)"
+  default: service
+  choices:
+    - hub
+    - device
+    - entity
+    - helper
+    - service
+    - hardware
+    - system
+    - virtual
+
+use_websocket:
+  type: bool
+  help: "Include WebSocket API?"
+  default: false
+
+use_services:
+  type: bool
+  help: "Include custom services (actions)?"
+  default: false
+
+use_secondary_coordinator:
+  type: bool
+  help: "Include a secondary DataUpdateCoordinator?"
+  default: false
+
+use_multi_step_config_flow:
+  type: bool
+  help: "Include multi-step config flow?"
+  default: false
+
+version:
+  type: str
+  help: "Initial version (SemVer, e.g. 0.1.0)"
+  default: "0.1.0"
+
+documentation_url:
+  type: str
+  help: "Documentation URL"
+  default: "https://github.com/[[ author_name ]]/ha-[[ project_domain | replace('_', '-') ]]"
+
+issue_tracker_url:
+  type: str
+  help: "Issue tracker URL"
+  default: "https://github.com/[[ author_name ]]/ha-[[ project_domain | replace('_', '-') ]]/issues"

@@ -5,11 +5,17 @@ import logging
 from typing import Any
 
 from homeassistant.components.notify import NotifyEntity, NotifyEntityFeature
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+from homeassistant.config_entries import (
+    SIGNAL_CONFIG_ENTRY_CHANGED,
+    ConfigEntry,
+    ConfigEntryChange,
+)
+from homeassistant.core import Event, EventStateChangedData, HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import entity_registry as er, device_registry as dr
+from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.util import slugify
 
 from .const import DOMAIN
@@ -130,18 +136,85 @@ class PersonNotifyEntity(NotifyEntity):
         self._attr_name = f"Person Notify {object_id}"
         self._attr_extra_state_attributes: dict[str, Any] = {}
 
-    @property
-    def extra_state_attributes(self) -> dict[str, Any]:
-        """Zeige aktuell aufloesbare Ziele und nicht-aufloesbare Tracker."""
+    async def async_added_to_hass(self) -> None:
+        """Ziele aufloesen und auf Aenderungen der Aufloesungskette hoeren."""
+        await super().async_added_to_hass()
+        self._update_targets()
+
+        # Jedes Glied der Kette kann sich aendern, ohne dass gesendet wird:
+        # device_trackers der Person, Tracker -> device_id (Entity-Registry),
+        # Device -> Config-Entries (Device-Registry) und der device_name im
+        # mobile_app-ConfigEntry (Umbenennung in der App).
+        self.async_on_remove(
+            async_track_state_change_event(
+                self.hass, [self._person_entity_id], self._async_person_changed
+            )
+        )
+        self.async_on_remove(
+            self.hass.bus.async_listen(
+                er.EVENT_ENTITY_REGISTRY_UPDATED, self._async_refresh_targets
+            )
+        )
+        self.async_on_remove(
+            self.hass.bus.async_listen(
+                dr.EVENT_DEVICE_REGISTRY_UPDATED, self._async_refresh_targets
+            )
+        )
+        self.async_on_remove(
+            async_dispatcher_connect(
+                self.hass, SIGNAL_CONFIG_ENTRY_CHANGED, self._async_config_entry_changed
+            )
+        )
+
+    def _update_targets(self) -> bool:
+        """Ziele neu aufloesen und als Attribute zwischenspeichern.
+
+        Gibt True zurueck, wenn sich resolved_targets oder unresolved_trackers
+        geaendert haben.
+        """
         resolved, unresolved = _resolve_targets(self.hass, self._person_entity_id)
-        return {
+        attributes = {
             "resolved_targets": resolved,
             "unresolved_trackers": unresolved,
         }
+        if attributes == self._attr_extra_state_attributes:
+            return False
+        self._attr_extra_state_attributes = attributes
+        return True
+
+    @callback
+    def _async_refresh_targets(self, *_: Any) -> None:
+        """State nur schreiben, wenn sich das Aufloesungsergebnis geaendert hat."""
+        if self._update_targets():
+            self.async_write_ha_state()
+
+    @callback
+    def _async_person_changed(self, event: Event[EventStateChangedData]) -> None:
+        """Nur reagieren, wenn sich die device_trackers der Person geaendert haben.
+
+        Die Person aendert ihren State bei jedem Standort-Update ihrer Tracker.
+        """
+        old_state = event.data["old_state"]
+        new_state = event.data["new_state"]
+        old_trackers = old_state.attributes.get("device_trackers") if old_state else None
+        new_trackers = new_state.attributes.get("device_trackers") if new_state else None
+        if old_trackers != new_trackers:
+            self._async_refresh_targets()
+
+    @callback
+    def _async_config_entry_changed(
+        self, change: ConfigEntryChange, entry: ConfigEntry
+    ) -> None:
+        """Nur mobile_app-ConfigEntries gehoeren zur Aufloesungskette."""
+        if entry.domain == "mobile_app":
+            self._async_refresh_targets()
 
     async def async_send_message(self, message: str, title: str | None = None) -> None:
         """Nachricht an alle aufloesbare Geraete der Person senden."""
-        resolved, unresolved = _resolve_targets(self.hass, self._person_entity_id)
+        # Zur Sendezeit immer frisch aufloesen, nicht aus dem Cache.
+        self._async_refresh_targets()
+        resolved = self._attr_extra_state_attributes["resolved_targets"]
+        unresolved = self._attr_extra_state_attributes["unresolved_trackers"]
 
         if not resolved:
             state = self.hass.states.get(self._person_entity_id)

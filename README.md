@@ -32,7 +32,8 @@ person.max  →  attribute "device_trackers"
             →  notify.mobile_app_<slugified device_name>
 ```
 
-Nothing is cached. If you pair a new phone, the next notification already uses it.
+Sending never relies on a cached result. If you pair a new phone, the next
+notification already uses it.
 
 If a person has more than one phone, **all** of them are notified.
 
@@ -63,6 +64,9 @@ without sending anything:
 |---|---|
 | `resolved_targets` | notify services that would be called right now |
 | `unresolved_trackers` | trackers of this person that have no `mobile_app` device |
+
+They update on their own as soon as the person's `device_trackers`, the entity or
+device registry, or a `mobile_app` config entry changes — no send or reload needed.
 
 ## Installation
 
